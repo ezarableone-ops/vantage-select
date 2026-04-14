@@ -64,7 +64,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-navy-50">
+    <div className="min-h-screen bg-lime-50/60">
       {/* Header */}
       <header className="bg-white border-b border-navy-200">
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">

@@ -102,7 +102,7 @@ export default function ProjectPage({ params }) {
   const rankings = calcRankings(project.criteria, project.bidders, project.scores)
 
   return (
-    <div className="min-h-screen bg-navy-50">
+    <div className="min-h-screen bg-lime-50/60">
       {/* Header */}
       <header className="bg-white border-b border-navy-200">
         <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between">
