@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { LogoFull } from '../../../components/Logo'
 import { getProject, updateProject, addBidder, removeBidder, updateBidder, addCriteria, removeCriteria, updateCriteria, setScore, setCommercial, setRecommendation, exportProject } from '../../../lib/store'
 import { SCORE_LABELS, CATEGORIES, PROJECT_TYPES, calcBidderScore, calcRankings, calcCategoryScores, validateWeights } from '../../../lib/scoring'
+import { exportToExcel } from '../../../lib/exportExcel'
 
 export default function ProjectPage({ params }) {
   const { id } = use(params)
@@ -95,6 +96,7 @@ export default function ProjectPage({ params }) {
     { key: 'criteria', label: 'Criteria', icon: 'M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75' },
     { key: 'bidders', label: `Bidders (${project.bidders.length})`, icon: 'M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z' },
     { key: 'scoring', label: 'Scoring', icon: 'M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5M9 11.25v1.5M12 9v3.75m3-6v6' },
+    { key: 'commercial', label: 'Commercial', icon: 'M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z' },
     { key: 'summary', label: 'Summary', icon: 'M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.007 0H9.497m5.007 0a7.454 7.454 0 01-.982-3.172M9.497 14.25a7.454 7.454 0 00.981-3.172M5.25 4.236c-.982.143-1.954.317-2.916.52A6.003 6.003 0 007.73 9.728M5.25 4.236V4.5c0 2.108.966 3.99 2.48 5.228M5.25 4.236V2.721C7.456 2.41 9.71 2.25 12 2.25c2.291 0 4.545.16 6.75.47v1.516M18.75 4.236c.982.143 1.954.317 2.916.52A6.003 6.003 0 0016.27 9.728M18.75 4.236V4.5c0 2.108-.966 3.99-2.48 5.228m0 0a6.023 6.023 0 01-2.77.667h-.5a6.023 6.023 0 01-2.77-.667' },
   ]
 
@@ -137,15 +139,23 @@ export default function ProjectPage({ params }) {
               </div>
             </div>
           </div>
-          <button
-            onClick={handleExport}
-            className="text-sm text-navy-500 hover:text-navy-700 px-3 py-2 rounded-lg hover:bg-navy-100 transition cursor-pointer flex items-center gap-1.5"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-            </svg>
-            Export
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => exportToExcel(project)}
+              className="text-sm text-navy-500 hover:text-navy-700 px-3 py-2 rounded-lg hover:bg-navy-100 transition cursor-pointer flex items-center gap-1.5"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+              </svg>
+              Excel
+            </button>
+            <button
+              onClick={handleExport}
+              className="text-sm text-navy-500 hover:text-navy-700 px-3 py-2 rounded-lg hover:bg-navy-100 transition cursor-pointer flex items-center gap-1.5"
+            >
+              JSON
+            </button>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -432,7 +442,9 @@ export default function ProjectPage({ params }) {
                         </td>
                         <td className="p-3 text-center text-navy-500 text-xs">{c.weight}%</td>
                         {project.bidders.map(b => {
-                          const score = project.scores?.[b.id]?.[c.id]?.score || 0
+                          const scoreData = project.scores?.[b.id]?.[c.id]
+                          const score = scoreData?.score || 0
+                          const comment = scoreData?.comment || ''
                           return (
                             <td key={b.id} className="p-2 text-center">
                               <select
@@ -448,6 +460,15 @@ export default function ProjectPage({ params }) {
                                   <option key={s} value={s}>{s} — {SCORE_LABELS[s].label}</option>
                                 ))}
                               </select>
+                              {score > 0 && (
+                                <input
+                                  type="text"
+                                  value={comment}
+                                  onChange={e => { setScore(id, b.id, c.id, score, e.target.value); reload() }}
+                                  placeholder="Comment..."
+                                  className="w-full mt-1 text-xs text-navy-500 border border-navy-100 rounded px-1.5 py-1 focus:outline-none focus:border-select-400 bg-transparent"
+                                />
+                              )}
                             </td>
                           )
                         })}
@@ -469,6 +490,122 @@ export default function ProjectPage({ params }) {
                     </tr>
                   </tbody>
                 </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Commercial Tab ── */}
+        {tab === 'commercial' && (
+          <div>
+            <h2 className="text-lg font-bold text-navy-900 mb-4">Commercial Comparison</h2>
+
+            {project.bidders.length === 0 ? (
+              <div className="text-center py-12 bg-white border border-navy-200 rounded-xl">
+                <p className="text-navy-400">Add bidders first to compare commercial terms.</p>
+              </div>
+            ) : (
+              <div className="bg-white border border-navy-200 rounded-xl overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-navy-200">
+                      <th className="text-left p-3 font-semibold text-navy-700 min-w-[160px] sticky left-0 bg-white"></th>
+                      {project.bidders.map(b => (
+                        <th key={b.id} className="p-3 text-center font-semibold text-navy-700 min-w-[180px]">
+                          <div>{b.name}</div>
+                          {b.company && <div className="text-xs font-normal text-navy-400">{b.company}</div>}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      { key: 'totalPrice', label: 'Total Price', format: (v, c) => v ? `${c?.currency || 'THB'} ${Number(v).toLocaleString()}` : '' },
+                      { key: 'pricePerWp', label: 'Price / Wp', format: v => v ? `$${v}` : '' },
+                      { key: 'pricePerMW', label: 'Price / MW', format: v => v ? Number(v).toLocaleString() : '' },
+                      { key: 'deliveryWeeks', label: 'Delivery (weeks)', format: v => v || '' },
+                      { key: 'warranty', label: 'Warranty', format: v => v || '' },
+                      { key: 'notes', label: 'Notes', format: v => v || '' },
+                    ].map(field => {
+                      // Find min price for highlighting
+                      const values = project.bidders.map(b => project.commercial?.[b.id]?.[field.key]).filter(Boolean)
+                      const isPrice = ['totalPrice', 'pricePerWp', 'pricePerMW'].includes(field.key)
+                      const minVal = isPrice && values.length > 0 ? Math.min(...values.map(Number).filter(n => !isNaN(n) && n > 0)) : null
+                      const isDelivery = field.key === 'deliveryWeeks'
+                      const minDelivery = isDelivery && values.length > 0 ? Math.min(...values.map(Number).filter(n => !isNaN(n) && n > 0)) : null
+
+                      return (
+                        <tr key={field.key} className="border-b border-navy-100">
+                          <td className="p-3 font-medium text-navy-700 sticky left-0 bg-white">{field.label}</td>
+                          {project.bidders.map(b => {
+                            const comm = project.commercial?.[b.id] || {}
+                            const val = comm[field.key]
+                            const numVal = Number(val)
+                            const isBest = (isPrice && numVal === minVal) || (isDelivery && numVal === minDelivery)
+                            return (
+                              <td key={b.id} className="p-3 text-center">
+                                {field.key === 'notes' ? (
+                                  <textarea
+                                    value={val || ''}
+                                    onChange={e => { setCommercial(id, b.id, { ...comm, [field.key]: e.target.value }); reload() }}
+                                    placeholder="—"
+                                    className="w-full text-xs text-navy-600 border border-navy-100 rounded px-2 py-1.5 focus:outline-none focus:border-select-400 min-h-[60px]"
+                                  />
+                                ) : (
+                                  <input
+                                    type={isPrice || isDelivery ? 'number' : 'text'}
+                                    value={val || ''}
+                                    onChange={e => { setCommercial(id, b.id, { ...comm, [field.key]: e.target.value }); reload() }}
+                                    placeholder="—"
+                                    className={`w-full text-center text-sm border border-navy-100 rounded px-2 py-1.5 focus:outline-none focus:border-select-400 ${
+                                      isBest ? 'bg-lime-50 text-lime-700 font-semibold border-lime-200' : 'text-navy-700'
+                                    }`}
+                                  />
+                                )}
+                              </td>
+                            )
+                          })}
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Price comparison visual */}
+            {project.bidders.some(b => project.commercial?.[b.id]?.totalPrice) && (
+              <div className="bg-white border border-navy-200 rounded-xl p-5 mt-4">
+                <h3 className="font-semibold text-navy-900 mb-4">Price Comparison</h3>
+                <div className="space-y-3">
+                  {(() => {
+                    const maxPrice = Math.max(...project.bidders.map(b => Number(project.commercial?.[b.id]?.totalPrice) || 0))
+                    const minPrice = Math.min(...project.bidders.filter(b => project.commercial?.[b.id]?.totalPrice).map(b => Number(project.commercial[b.id].totalPrice)))
+                    return project.bidders
+                      .filter(b => project.commercial?.[b.id]?.totalPrice)
+                      .sort((a, b) => (Number(project.commercial?.[a.id]?.totalPrice) || 0) - (Number(project.commercial?.[b.id]?.totalPrice) || 0))
+                      .map(b => {
+                        const price = Number(project.commercial[b.id].totalPrice)
+                        const pct = maxPrice > 0 ? (price / maxPrice) * 100 : 0
+                        const isCheapest = price === minPrice
+                        return (
+                          <div key={b.id} className="flex items-center gap-3">
+                            <div className="w-32 text-sm font-medium text-navy-800 truncate flex-shrink-0">{b.name}</div>
+                            <div className="flex-1">
+                              <div className="w-full bg-navy-100 rounded-full h-6 relative">
+                                <div
+                                  className={`h-6 rounded-full flex items-center justify-end pr-2 text-xs font-semibold text-white ${isCheapest ? 'bg-lime-500' : 'bg-select-400'}`}
+                                  style={{ width: `${pct}%`, minWidth: '80px' }}
+                                >
+                                  {(project.commercial[b.id].currency || 'THB')} {price.toLocaleString()}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })
+                  })()}
+                </div>
               </div>
             )}
           </div>
