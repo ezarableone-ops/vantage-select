@@ -28,7 +28,7 @@ export default function ProjectPage({ params }) {
   useEffect(() => {
     const p = getProject(id)
     if (!p) {
-      router.push('/')
+      router.push('/app')
       return
     }
     setProject(p)
@@ -107,7 +107,7 @@ export default function ProjectPage({ params }) {
       <header className="bg-white border-b border-navy-200">
         <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button onClick={() => router.push('/')} className="text-navy-400 hover:text-navy-600 cursor-pointer">
+            <button onClick={() => router.push('/app')} className="text-navy-400 hover:text-navy-600 cursor-pointer">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
               </svg>
