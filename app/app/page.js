@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { LogoFull } from '../../components/Logo'
 import { getProjects, createProject, deleteProject, importProject } from '../../lib/store'
 import { PROJECT_TYPES } from '../../lib/scoring'
+import { createDemoProject } from '../../lib/demoData'
 
 export default function HomePage() {
   const router = useRouter()
@@ -63,6 +64,17 @@ export default function HomePage() {
     input.click()
   }
 
+  function handleLoadDemo() {
+    const demo = createDemoProject()
+    // Save to localStorage
+    const raw = localStorage.getItem('vantage_select_data')
+    const data = raw ? JSON.parse(raw) : { projects: {} }
+    data.projects[demo.id] = demo
+    localStorage.setItem('vantage_select_data', JSON.stringify(data))
+    setProjects(getProjects())
+    router.push(`/project/${demo.id}`)
+  }
+
   return (
     <div className="min-h-screen bg-lime-100">
       {/* Header */}
@@ -104,12 +116,20 @@ export default function HomePage() {
               Create your first bid evaluation to compare proposals,
               score bidders, and generate professional recommendation reports.
             </p>
-            <button
-              onClick={() => setShowNew(true)}
-              className="bg-select-500 hover:bg-select-600 text-white font-semibold px-6 py-3 rounded-xl transition cursor-pointer"
-            >
-              Create First Evaluation
-            </button>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <button
+                onClick={() => setShowNew(true)}
+                className="bg-select-500 hover:bg-select-600 text-white font-semibold px-6 py-3 rounded-xl transition cursor-pointer"
+              >
+                Create First Evaluation
+              </button>
+              <button
+                onClick={handleLoadDemo}
+                className="text-navy-500 hover:text-navy-700 font-medium px-6 py-3 rounded-xl border border-navy-300 hover:border-navy-400 transition cursor-pointer text-sm"
+              >
+                Load Demo — 100MW Solar EPC
+              </button>
+            </div>
           </div>
         )}
 
