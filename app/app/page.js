@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { LogoFull } from '../../components/Logo'
 import { getProjects, createProject, deleteProject, importProject } from '../../lib/store'
-import { PROJECT_TYPES } from '../../lib/scoring'
+import { PROJECT_TYPES, SCORING_MODES } from '../../lib/scoring'
 import { createDemoProject } from '../../lib/demoData'
 
 export default function HomePage() {
@@ -12,9 +12,11 @@ export default function HomePage() {
   const [showNew, setShowNew] = useState(false)
   const [newName, setNewName] = useState('')
   const [newClient, setNewClient] = useState('')
-  const [newType, setNewType] = useState('epc')
+  const [newType, setNewType] = useState('solar_epc')
   const [newCapacity, setNewCapacity] = useState('')
   const [newLocation, setNewLocation] = useState('')
+  const [newScoringMode, setNewScoringMode] = useState('compliance')
+  const [newIncludeCommercial, setNewIncludeCommercial] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(null)
 
   useEffect(() => {
@@ -29,13 +31,17 @@ export default function HomePage() {
       projectType: newType,
       capacity: newCapacity.trim(),
       location: newLocation.trim(),
+      scoringMode: newScoringMode,
+      includeCommercial: newIncludeCommercial,
     })
     setShowNew(false)
     setNewName('')
     setNewClient('')
-    setNewType('epc')
+    setNewType('solar_epc')
     setNewCapacity('')
     setNewLocation('')
+    setNewScoringMode('compliance')
+    setNewIncludeCommercial(false)
     router.push(`/project/${project.id}`)
   }
 
@@ -263,6 +269,45 @@ export default function HomePage() {
                     className="w-full border border-navy-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-select-500 focus:ring-2 focus:ring-select-500/20"
                   />
                 </div>
+              </div>
+            </div>
+
+            {/* Scoring Mode */}
+            <div className="mt-4 p-3 bg-navy-50 rounded-lg">
+              <label className="text-sm font-medium text-navy-700 mb-2 block">Scoring Method</label>
+              <div className="flex gap-3">
+                {Object.entries(SCORING_MODES).map(([key, mode]) => (
+                  <button
+                    key={key}
+                    onClick={() => setNewScoringMode(key)}
+                    className={`flex-1 p-2 rounded-lg border text-xs text-center cursor-pointer transition ${
+                      newScoringMode === key
+                        ? 'border-select-500 bg-select-50 text-select-700 font-semibold'
+                        : 'border-navy-200 bg-white text-navy-500 hover:border-navy-300'
+                    }`}
+                  >
+                    <div className="font-medium">{mode.label}</div>
+                    <div className="text-navy-400 mt-0.5">{mode.desc}</div>
+                  </button>
+                ))}
+              </div>
+
+              {/* Include Commercial Toggle */}
+              <div className="mt-3 flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-medium text-navy-700">Include Commercial Evaluation</div>
+                  <div className="text-xs text-navy-400">ปิด = TA scope (ดูเฉพาะ Technical) / เปิด = Full scope (รวม pricing)</div>
+                </div>
+                <button
+                  onClick={() => setNewIncludeCommercial(!newIncludeCommercial)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition cursor-pointer ${
+                    newIncludeCommercial ? 'bg-select-500' : 'bg-navy-200'
+                  }`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
+                    newIncludeCommercial ? 'translate-x-6' : 'translate-x-1'
+                  }`} />
+                </button>
               </div>
             </div>
 

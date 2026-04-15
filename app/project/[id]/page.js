@@ -1,9 +1,9 @@
 'use client'
-import { useState, useEffect, use } from 'react'
+import React, { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { LogoFull } from '../../../components/Logo'
 import { getProject, updateProject, addBidder, removeBidder, updateBidder, addCriteria, removeCriteria, updateCriteria, setScore, setCommercial, setRecommendation, exportProject } from '../../../lib/store'
-import { SCORE_LABELS, CATEGORIES, PROJECT_TYPES, calcBidderScore, calcRankings, calcCategoryScores, validateWeights } from '../../../lib/scoring'
+import { SCORE_LABELS, COMPLIANCE_LEVELS, CATEGORIES, PROJECT_TYPES, SCORING_MODES, getScoreLabel, calcBidderScore, calcRankings, calcCategoryScores, validateWeights } from '../../../lib/scoring'
 import { exportToExcel } from '../../../lib/exportExcel'
 
 export default function ProjectPage({ params }) {
@@ -72,8 +72,11 @@ export default function ProjectPage({ params }) {
     reload()
   }
 
-  function handleScoreChange(bidderId, criteriaId, score) {
-    setScore(id, bidderId, criteriaId, Number(score))
+  function handleScoreChange(bidderId, criteriaId, value) {
+    if (value === '' || value === undefined) return
+    const numVal = Number(value)
+    const existing = project?.scores?.[bidderId]?.[criteriaId]
+    setScore(id, bidderId, criteriaId, numVal, existing?.comment || '')
     reload()
   }
 
@@ -101,7 +104,8 @@ export default function ProjectPage({ params }) {
   ]
 
   const weightCheck = validateWeights(project.criteria)
-  const rankings = calcRankings(project.criteria, project.bidders, project.scores)
+  const scoringMode = project.scoringMode || 'compliance'
+  const rankings = calcRankings(project.criteria, project.bidders, project.scores, scoringMode)
 
   return (
     <div className="min-h-screen bg-lime-100">
@@ -283,6 +287,7 @@ export default function ProjectPage({ params }) {
                       <div key={c.id} className="bg-white border border-navy-200 rounded-lg p-4 flex items-center justify-between group">
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
+                            {c.section && <span className="text-xs font-mono text-navy-400 bg-navy-50 px-1.5 py-0.5 rounded">{c.section}</span>}
                             <span className="font-medium text-navy-900 text-sm">{c.name}</span>
                             <span className="text-xs bg-navy-100 text-navy-600 px-2 py-0.5 rounded-full">{c.weight}%</span>
                           </div>
@@ -415,83 +420,135 @@ export default function ProjectPage({ params }) {
         {/* ── Scoring Tab ── */}
         {tab === 'scoring' && (
           <div>
-            <h2 className="text-lg font-bold text-navy-900 mb-4">Score Matrix</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-navy-900">Score Matrix</h2>
+              <div className="text-xs text-navy-400 bg-white px-3 py-1.5 rounded-lg border border-navy-200">
+                {project.scoringMode === 'scale5' ? 'Scale 1-5' : 'UL Compliance (0-100)'}
+              </div>
+            </div>
 
             {project.bidders.length === 0 || project.criteria.length === 0 ? (
               <div className="text-center py-12 bg-white border border-navy-200 rounded-xl">
                 <p className="text-navy-400">Add at least one bidder and one criteria to start scoring.</p>
               </div>
-            ) : (
-              <div className="bg-white border border-navy-200 rounded-xl overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-navy-200">
-                      <th className="text-left p-3 font-semibold text-navy-700 min-w-[200px] sticky left-0 bg-white">Criteria</th>
-                      <th className="p-3 text-center text-navy-400 text-xs w-16">Weight</th>
-                      {project.bidders.map(b => (
-                        <th key={b.id} className="p-3 text-center font-semibold text-navy-700 min-w-[100px]">{b.name}</th>
+            ) : (() => {
+              const mode = project.scoringMode || 'compliance'
+              const scoreOptions = mode === 'compliance'
+                ? [0, 25, 50, 75, 100]
+                : [1, 2, 3, 4, 5]
+              const labels = mode === 'compliance' ? COMPLIANCE_LEVELS : SCORE_LABELS
+
+              // Group criteria by section
+              const sections = []
+              let currentSection = null
+              for (const c of project.criteria) {
+                if (c.section !== currentSection) {
+                  currentSection = c.section
+                  sections.push({ section: c.section, category: c.category, items: [] })
+                }
+                sections[sections.length - 1].items.push(c)
+              }
+
+              return (
+                <div className="bg-white border border-navy-200 rounded-xl overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-navy-200">
+                        <th className="text-left p-3 font-semibold text-navy-700 min-w-[250px] sticky left-0 bg-white z-10">Criteria</th>
+                        <th className="p-3 text-center text-navy-400 text-xs w-16">Weight</th>
+                        {project.bidders.map(b => (
+                          <th key={b.id} className="p-3 text-center font-semibold text-navy-700 min-w-[140px]">{b.name}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sections.map((sec, si) => (
+                        <React.Fragment key={si}>
+                          {/* Section header */}
+                          <tr className="bg-navy-50/80">
+                            <td className="p-2 pl-3 sticky left-0 bg-navy-50/80 z-10" colSpan={1}>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-navy-600 bg-navy-200/50 px-1.5 py-0.5 rounded">{sec.section}</span>
+                                <span className="text-xs font-semibold text-navy-600">{CATEGORIES[sec.category]?.label}</span>
+                              </div>
+                            </td>
+                            <td className="p-2 text-center text-xs font-semibold text-navy-500">
+                              {sec.items.reduce((s, c) => s + c.weight, 0)}%
+                            </td>
+                            {project.bidders.map(b => {
+                              const sectionCriteria = sec.items
+                              const sectionCalc = calcBidderScore(sectionCriteria, project.scores?.[b.id] || {}, mode)
+                              return (
+                                <td key={b.id} className="p-2 text-center text-xs font-semibold text-navy-500">
+                                  {sectionCalc.completion > 0 ? `${sectionCalc.percent}%` : '—'}
+                                </td>
+                              )
+                            })}
+                          </tr>
+                          {/* Criteria rows */}
+                          {sec.items.map(c => (
+                            <tr key={c.id} className="border-b border-navy-100 hover:bg-navy-50/30">
+                              <td className="p-3 pl-6 sticky left-0 bg-white z-10">
+                                <div className="font-medium text-navy-800 text-xs">{c.name}</div>
+                                {c.description && <div className="text-xs text-navy-300 mt-0.5 line-clamp-1">{c.description}</div>}
+                              </td>
+                              <td className="p-3 text-center text-navy-400 text-xs">{c.weight}%</td>
+                              {project.bidders.map(b => {
+                                const scoreData = project.scores?.[b.id]?.[c.id]
+                                const score = scoreData?.score
+                                const hasScore = score !== undefined && score !== null
+                                const comment = scoreData?.comment || ''
+                                const lbl = hasScore ? labels[score] : null
+                                return (
+                                  <td key={b.id} className="p-2 text-center">
+                                    <select
+                                      value={hasScore ? score : ''}
+                                      onChange={e => handleScoreChange(b.id, c.id, e.target.value)}
+                                      className={`w-full text-center py-1.5 px-1 rounded-lg border text-xs font-medium cursor-pointer focus:outline-none focus:ring-2 focus:ring-select-500/20 ${
+                                        !hasScore ? 'border-navy-200 text-navy-300 bg-white' :
+                                        `border-transparent ${lbl?.color || 'bg-gray-100 text-gray-600'}`
+                                      }`}
+                                    >
+                                      <option value="">—</option>
+                                      {scoreOptions.map(s => (
+                                        <option key={s} value={s}>{mode === 'compliance' ? `${labels[s].label} (${s}%)` : `${s} — ${labels[s].label}`}</option>
+                                      ))}
+                                    </select>
+                                    {hasScore && (
+                                      <input
+                                        type="text"
+                                        value={comment}
+                                        onChange={e => { setScore(id, b.id, c.id, score, e.target.value); reload() }}
+                                        placeholder="Comment..."
+                                        className="w-full mt-1 text-xs text-navy-500 border border-navy-100 rounded px-1.5 py-1 focus:outline-none focus:border-select-400 bg-transparent"
+                                      />
+                                    )}
+                                  </td>
+                                )
+                              })}
+                            </tr>
+                          ))}
+                        </React.Fragment>
                       ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {project.criteria.map(c => (
-                      <tr key={c.id} className="border-b border-navy-100 hover:bg-navy-50/50">
-                        <td className="p-3 sticky left-0 bg-white">
-                          <div className="font-medium text-navy-800">{c.name}</div>
-                          <div className="text-xs text-navy-400">{CATEGORIES[c.category]?.label}</div>
-                        </td>
-                        <td className="p-3 text-center text-navy-500 text-xs">{c.weight}%</td>
+                      {/* Weighted totals */}
+                      <tr className="bg-navy-100 font-semibold">
+                        <td className="p-3 sticky left-0 bg-navy-100 text-navy-900 z-10">OVERALL WEIGHTED SCORE</td>
+                        <td className="p-3 text-center text-navy-600 text-xs">{weightCheck.total}%</td>
                         {project.bidders.map(b => {
-                          const scoreData = project.scores?.[b.id]?.[c.id]
-                          const score = scoreData?.score || 0
-                          const comment = scoreData?.comment || ''
+                          const calc = calcBidderScore(project.criteria, project.scores?.[b.id] || {}, mode)
                           return (
-                            <td key={b.id} className="p-2 text-center">
-                              <select
-                                value={score}
-                                onChange={e => handleScoreChange(b.id, c.id, e.target.value)}
-                                className={`w-full text-center py-1.5 px-1 rounded-lg border text-sm font-medium cursor-pointer focus:outline-none focus:ring-2 focus:ring-select-500/20 ${
-                                  score === 0 ? 'border-navy-200 text-navy-300 bg-white' :
-                                  `border-transparent ${SCORE_LABELS[score]?.color || ''}`
-                                }`}
-                              >
-                                <option value={0}>-</option>
-                                {[1,2,3,4,5].map(s => (
-                                  <option key={s} value={s}>{s} — {SCORE_LABELS[s].label}</option>
-                                ))}
-                              </select>
-                              {score > 0 && (
-                                <input
-                                  type="text"
-                                  value={comment}
-                                  onChange={e => { setScore(id, b.id, c.id, score, e.target.value); reload() }}
-                                  placeholder="Comment..."
-                                  className="w-full mt-1 text-xs text-navy-500 border border-navy-100 rounded px-1.5 py-1 focus:outline-none focus:border-select-400 bg-transparent"
-                                />
-                              )}
+                            <td key={b.id} className="p-3 text-center">
+                              <div className="text-lg text-navy-900">{calc.percent}%</div>
+                              <div className="text-xs text-navy-400">{calc.completion}% scored</div>
                             </td>
                           )
                         })}
                       </tr>
-                    ))}
-                    {/* Weighted totals */}
-                    <tr className="bg-navy-50 font-semibold">
-                      <td className="p-3 sticky left-0 bg-navy-50 text-navy-900">Weighted Score</td>
-                      <td className="p-3 text-center text-navy-500 text-xs">{weightCheck.total}%</td>
-                      {project.bidders.map(b => {
-                        const calc = calcBidderScore(project.criteria, project.scores?.[b.id] || {})
-                        return (
-                          <td key={b.id} className="p-3 text-center">
-                            <div className="text-lg text-navy-900">{calc.percent}%</div>
-                            <div className="text-xs text-navy-400">{calc.completion}% scored</div>
-                          </td>
-                        )
-                      })}
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            )}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            })()}
           </div>
         )}
 
@@ -622,7 +679,7 @@ export default function ProjectPage({ params }) {
                 <h3 className="font-semibold text-navy-900 mb-4">Final Rankings</h3>
                 <div className="space-y-4">
                   {rankings.map(r => {
-                    const catScores = calcCategoryScores(project.criteria, project.scores?.[r.bidder.id] || {})
+                    const catScores = calcCategoryScores(project.criteria, project.scores?.[r.bidder.id] || {}, scoringMode)
                     return (
                       <div key={r.bidder.id} className={`p-4 rounded-xl border-2 ${
                         r.rank === 1 ? 'border-lime-300 bg-lime-50/50' : 'border-navy-100'
